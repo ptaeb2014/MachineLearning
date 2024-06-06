@@ -2,20 +2,18 @@ import os
 import numpy as np
 import rasterio
 import tensorflow as tf
-from tensorflow.keras import layers, models
+from tensorflow.keras import layers, models, optimizers, losses
 from skimage.transform import resize
-from tensorflow.keras import layers, initializers
-from tensorflow.keras.optimizers import Adam
 
 def load_and_preprocess_raster(file_path, target_shape=(608, 320)):
     with rasterio.open(file_path) as src:
-        print(src)
         # Assuming single-band raster
         raster_data = src.read(1)
         raster_data = preprocess_data(raster_data)
         # Resize to the target shape
         raster_data = resize(raster_data, target_shape, preserve_range=True)
         raster_data = raster_data.reshape(target_shape[0], target_shape[1], 1)  # Add channel dimension
+        # print(raster_data.shape())
     return raster_data
 
 def preprocess_data(data):
@@ -46,26 +44,24 @@ def save_raster(output_path, data, transform, meta):
 
     with rasterio.open(output_path, 'w', **meta) as dst:
         dst.write(data, 1)
-        dst.set_transform(transform)
+        #dst.set_transform(transform)
 
 def create_model(input_shape):
     model = models.Sequential([
-        # layers.Conv2D(32, (3, 3), activation='relu', padding='same', input_shape=input_shape),
-        # layers.Conv2D(64, (3, 3), activation='relu', padding='same'),
-        # # layers.UpSampling2D((2, 2)),  # Upsamples to (1216, 640)
-        # # layers.MaxPooling2D((2, 2)),
-        # layers.Conv2D(128, (3, 3), activation='relu', padding='same'),
-        # layers.Conv2D(64, (3, 3), activation='relu', padding='same'),
-        # layers.Conv2D(1, (3, 3), activation='linear', padding='same')
-        layers.Dense(32, activation='relu', input_shape=input_shape),
-        layers.Dense(64, activation='relu'),
-        layers.Dense(128, activation='relu'),
-        layers.Dense(64, activation='relu'),
-        layers.Dense(1, activation='linear')
+        layers.Conv2D(32, (3, 3), activation='relu', padding='same', input_shape=input_shape),
+        layers.Conv2D(64, (3, 3), activation='relu', padding='same'),
+        # layers.UpSampling2D((2, 2)),  # Upsamples to (1216, 640)
+        # layers.MaxPooling2D((2, 2)),
+        layers.Conv2D(128, (3, 3), activation='relu', padding='same'),
+        layers.Conv2D(64, (3, 3), activation='relu', padding='same'),
+        layers.Conv2D(1, (3, 3), activation='relu', padding='same')
     ])
     model.compile(
-        loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-        optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),)
+        # loss=losses.MeanAbsoluteError(),
+        # loss=losses.MeanSquaredError(),
+        loss=tf.keras.losses.SparseCategoricalCrossentropy(),
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+    )
     # optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),)
     return model
 
